@@ -1,7 +1,11 @@
 export function getTasks(tasks, filters = {}) {
+    const validPriorities = ["Low", "Medium", "High"];
+
     let filteredTasks = tasks.map(task => ({
         ...task,
-        priority: task.priority || "Medium"
+        priority: validPriorities.includes(task.priority)
+            ? task.priority
+            : "Medium"
     }));
 
     return filteredTasks.sort(
