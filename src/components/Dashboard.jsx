@@ -41,7 +41,11 @@ function Dashboard() {
                 
                 {/* CONFLICT ZONE 5: DASHBOARD CONTROLS */}
                 <div className="dashboard-controls">
-                    {/* Developers will add UI controls here: Project Search, Filters, Stats UI, Sorting UI */}
+                                       <input
+                        type="text"
+                        placeholder="Search projects..."
+                        onChange={e => setProjectFilters(prev => ({ ...prev, search: e.target.value }))}
+                    />
                     <div className="stat-card">
                         <span>Total Tasks: {stats.totalTasks}</span>
                     </div>
