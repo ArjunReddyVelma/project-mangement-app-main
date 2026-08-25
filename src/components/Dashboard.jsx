@@ -7,7 +7,7 @@ import { projects as initialProjects, tasks as initialTasks, users as initialUse
 import { getProjects } from '../utils/projectUtils';
 import { getTasks, createTask } from '../utils/taskUtils';
 import { calculateStats } from '../utils/dashboardUtils';
-
+import { getUsers } from '../utils/userUtils';
 function Dashboard() {
     const [projects, setProjects] = useState(initialProjects);
     const [tasks, setTasks] = useState(initialTasks);
@@ -17,12 +17,12 @@ function Dashboard() {
     // Filters state
     const [projectFilters, setProjectFilters] = useState({});
     const [taskFilters, setTaskFilters] = useState({});
-
+    const [userFilters, setUserFilters] = useState({});
     // Processed Data
     const displayedProjects = getProjects(projects, projectFilters);
     const displayedTasks = getTasks(tasks, taskFilters);
     const stats = calculateStats(displayedProjects, displayedTasks);
-
+    const displayedUsers = getUsers(users, userFilters);
     const handleCreateTask = (taskData) => {
         try {
             const updatedTasks = createTask(taskData, tasks);
@@ -66,7 +66,7 @@ function Dashboard() {
 
                     <section className="dashboard-section">
                         <h2>Team Members</h2>
-                        <UserList users={users} />
+                        <UserList users={displayedUsers} />                   
                     </section>
                 </main>
 
