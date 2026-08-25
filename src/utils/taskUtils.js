@@ -1,6 +1,13 @@
 export function getTasks(tasks, filters = {}) {
+    const validPriorities = ["Low", "Medium", "High"];
     const validStatuses = ["All", "Active", "Completed"];
-    let filteredTasks = [...tasks];
+
+    let filteredTasks = tasks.map(task => ({
+        ...task,
+        priority: validPriorities.includes(task.priority)
+            ? task.priority
+            : "Medium"
+    }));
 
     const statusFilter = validStatuses.includes(filters.status)
         ? filters.status
@@ -16,7 +23,6 @@ export function getTasks(tasks, filters = {}) {
         (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
     );
 }
-
 export function createTask(taskData, existingTasks) {
     // Basic validation
     if (!taskData.title) {
