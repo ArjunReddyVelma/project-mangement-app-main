@@ -1,9 +1,14 @@
 export function getTasks(tasks, filters = {}) {
+    const validStatuses = ["All", "Active", "Completed"];
     let filteredTasks = [...tasks];
 
-    if (filters.status && filters.status !== "All") {
+    const statusFilter = validStatuses.includes(filters.status)
+        ? filters.status
+        : "All";
+
+    if (statusFilter !== "All") {
         filteredTasks = filteredTasks.filter(
-            task => task.status === filters.status
+            task => task.status === statusFilter
         );
     }
 
