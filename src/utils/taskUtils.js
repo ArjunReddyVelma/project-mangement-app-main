@@ -1,10 +1,15 @@
 export function getTasks(tasks, filters = {}) {
     let filteredTasks = [...tasks];
 
-    // TODO: Apply filters here based on the filters object
-    // Developers will add priority, search, status, and assignee filters here.
+    if (filters.status && filters.status !== "All") {
+        filteredTasks = filteredTasks.filter(
+            task => task.status === filters.status
+        );
+    }
 
-    return filteredTasks.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return filteredTasks.sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
 }
 
 export function createTask(taskData, existingTasks) {
