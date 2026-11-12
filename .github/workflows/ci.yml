@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  application:
+    name: Lint, build, and smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+      - name: Build production image
+        run: docker build --tag project-dashboard:${{ github.sha }} .
+
+      - name: Smoke test container health endpoint
+        run: |
+          docker run --detach --rm --name project-dashboard -p 8080:8080 project-dashboard:${{ github.sha }}
+          for attempt in {1..10}; do
+            if curl --fail --silent http://localhost:8080/health; then
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+
+      - name: Scan image for critical vulnerabilities
+        uses: aquasecurity/trivy-action@0.31.0
+        with:
+          image-ref: project-dashboard:${{ github.sha }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+
+  infrastructure:
+    name: Validate Terraform
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - run: terraform init -backend=false
+      - run: terraform fmt -check
+      - run: terraform validate
