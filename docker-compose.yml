@@ -1,0 +1,26 @@
+services:
+  dashboard:
+    build:
+      context: .
+    ports:
+      - "8080:8080"
+
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:1.4.1
+    command:
+      - --nginx.scrape-uri=http://dashboard:8080/nginx_status
+    depends_on:
+      - dashboard
+    ports:
+      - "9113:9113"
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - nginx-exporter
+    ports:
+      - "9090:9090"
