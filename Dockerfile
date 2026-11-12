@@ -8,6 +8,7 @@ COPY . .
 RUN npm run build
 
 FROM nginx:1.30.6-alpine3.24
+RUN apk update && apk upgrade --no-cache
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 

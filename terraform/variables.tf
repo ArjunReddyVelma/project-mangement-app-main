@@ -5,11 +5,11 @@ variable "aws_region" {
 }
 
 variable "project_name" {
-  type        = string
-  default     = "project-management"
+  type    = string
+  default = "project-management"
 }
 
 variable "environment" {
-  type        = string
-  default     = "dev"
+  type    = string
+  default = "dev"
 }
