@@ -1,0 +1,52 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: project-dashboard-network-policy
+  namespace: project-dashboard
+  labels:
+    app.kubernetes.io/name: project-dashboard
+    app.kubernetes.io/part-of: devops-platform
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: project-dashboard
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow incoming web traffic to dashboard container on port 8080
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Allow Prometheus scrapers to access sidecar metrics on port 9113
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - protocol: TCP
+          port: 9113
+  egress:
+    # Allow DNS resolution to CoreDNS in kube-system
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow in-cluster health verification communication within namespace
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: project-dashboard
+      ports:
+        - protocol: TCP
+          port: 8080

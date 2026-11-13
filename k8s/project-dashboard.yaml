@@ -12,6 +12,11 @@ metadata:
     app.kubernetes.io/name: project-dashboard
 spec:
   replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app.kubernetes.io/name: project-dashboard
@@ -20,6 +25,7 @@ spec:
       labels:
         app.kubernetes.io/name: project-dashboard
     spec:
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         seccompProfile:
