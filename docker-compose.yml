@@ -20,7 +20,21 @@ services:
       - --config.file=/etc/prometheus/prometheus.yml
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
     depends_on:
       - nginx-exporter
     ports:
       - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    ports:
+      - "3000:3000"

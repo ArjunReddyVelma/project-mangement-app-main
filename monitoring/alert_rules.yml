@@ -1,0 +1,47 @@
+groups:
+  - name: project-dashboard-alerts
+    rules:
+      - alert: NginxServiceDown
+        expr: nginx_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Nginx web server is down"
+          description: "Nginx exporter cannot scrape Nginx status endpoint on project-dashboard."
+
+      - alert: HighActiveConnections
+        expr: nginx_connections_active > 100
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High number of active connections"
+          description: "Active connections to Nginx exceeded 100 for more than 2 minutes."
+
+      - alert: HighRequestRate
+        expr: rate(nginx_http_requests_total[1m]) > 500
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Unusual request spike detected"
+          description: "HTTP request rate is higher than 500 req/sec."
+
+      - alert: HighContainerCpuUsage
+        expr: rate(container_cpu_usage_seconds_total[2m]) > 0.8
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High container CPU utilization"
+          description: "Container CPU utilization exceeded 80% for 3 minutes."
+
+      - alert: PodRestartsHigh
+        expr: increase(kube_pod_container_status_restarts_total[15m]) > 3
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Frequent container restarts"
+          description: "Pod in namespace project-dashboard restarted more than 3 times in 15 minutes."
