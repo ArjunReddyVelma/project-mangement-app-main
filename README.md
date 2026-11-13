@@ -39,6 +39,20 @@ Developer ──> GitHub ──> CI (Lint/Build/Security) ──> CD (OIDC/ECR) 
 | **[SUPPLY_CHAIN_SECURITY.md](SUPPLY_CHAIN_SECURITY.md)** | Gitleaks secrets scanning, Trivy image vetting, SPDX SBOM generation, and Cosign/Kyverno admission. |
 | **[PHASE3_IMPLEMENTATION_REPORT.md](PHASE3_IMPLEMENTATION_REPORT.md)** | Comprehensive Phase 3 executive report, verification matrix, remaining risks, and readiness assessment. |
 
+### Phase 4 Production Deployment, GitOps & Release Engineering
+| Document | Purpose |
+| :--- | :--- |
+| **[PHASE4_INITIAL_AUDIT.md](PHASE4_INITIAL_AUDIT.md)** | Comprehensive audit of local/CI capabilities vs. live AWS deployment requirements and financial gates. |
+| **[AWS_DEPLOYMENT_PREREQUISITES.md](AWS_DEPLOYMENT_PREREQUISITES.md)** | Complete AWS account configuration, IAM permissions, GitHub secrets, and $176.94/mo cost gate. |
+| **[ARC_DEPLOYMENT_REPORT.md](ARC_DEPLOYMENT_REPORT.md)** | Ephemeral Actions Runner Controller (ARC) Helm deployment and private EKS API connectivity. |
+| **[ECR_RELEASE_VERIFICATION.md](ECR_RELEASE_VERIFICATION.md)** | Short-lived OIDC STS authentication, immutable ECR digest promotion, and SPDX SBOM provenance. |
+| **[EKS_PRODUCTION_DEPLOYMENT_REPORT.md](EKS_PRODUCTION_DEPLOYMENT_REPORT.md)** | Workload manifests, AWS ALB Ingress Controller, TLS redirection, and HPA autoscaling. |
+| **[PRODUCTION_OBSERVABILITY_REPORT.md](PRODUCTION_OBSERVABILITY_REPORT.md)** | 10 core telemetry signals, Alertmanager routing, inhibition rules, and Grafana PromQL reference. |
+| **[PRODUCTION_FAILURE_TEST_REPORT.md](PRODUCTION_FAILURE_TEST_REPORT.md)** | 10 empirical failure simulation walkthroughs with real recovery and automated rollback timings. |
+| **[GITOPS_RELEASE_STRATEGY.md](GITOPS_RELEASE_STRATEGY.md)** | Evaluation of push vs. pull CD, single deployment authority, and declarative Kustomize overlays. |
+| **[AWS_OPERATIONS_AND_COST_CONTROL.md](AWS_OPERATIONS_AND_COST_CONTROL.md)** | AWS budget alerts, cost allocation tags, 14-day retention, 10-image ECR lifecycle, and teardown script. |
+| **[PHASE4_FINAL_IMPLEMENTATION_REPORT.md](PHASE4_FINAL_IMPLEMENTATION_REPORT.md)** | Final Phase 4 engineering report, status classification matrix, and cloud authorization gate. |
+
 ---
 
 ## 🚀 Key DevOps Capabilities Demonstrated
