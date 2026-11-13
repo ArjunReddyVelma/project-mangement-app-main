@@ -53,6 +53,20 @@ Developer ──> GitHub ──> CI (Lint/Build/Security) ──> CD (OIDC/ECR) 
 | **[AWS_OPERATIONS_AND_COST_CONTROL.md](AWS_OPERATIONS_AND_COST_CONTROL.md)** | AWS budget alerts, cost allocation tags, 14-day retention, 10-image ECR lifecycle, and teardown script. |
 | **[PHASE4_FINAL_IMPLEMENTATION_REPORT.md](PHASE4_FINAL_IMPLEMENTATION_REPORT.md)** | Final Phase 4 engineering report, status classification matrix, and cloud authorization gate. |
 
+### Phase 5 Production Readiness Audit & Operational Excellence
+| Document | Purpose |
+| :--- | :--- |
+| **[docs/PHASE5/PHASE5_INITIAL_AUDIT.md](docs/PHASE5/PHASE5_INITIAL_AUDIT.md)** | Baseline audit reconciling reported capabilities against actual repository implementation. |
+| **[docs/PHASE5/TERRAFORM_SECURITY_AUDIT.md](docs/PHASE5/TERRAFORM_SECURITY_AUDIT.md)** | CIS benchmark audit of Terraform modules, state locking, and teardown safety review. |
+| **[docs/PHASE5/KUBERNETES_SECURITY_AUDIT.md](docs/PHASE5/KUBERNETES_SECURITY_AUDIT.md)** | Pod Security Standards review, PDB, NetworkPolicy, and manifest validation. |
+| **[docs/PHASE5/CICD_GITOPS_AUDIT.md](docs/PHASE5/CICD_GITOPS_AUDIT.md)** | Supply chain review of workflows, action pinning, and single deployment authority (Option B). |
+| **[docs/PHASE5/SRE_OBSERVABILITY_AUDIT.md](docs/PHASE5/SRE_OBSERVABILITY_AUDIT.md)** | 10 SRE indicators, PromQL existence verification, and Nginx stub_status boundary analysis. |
+| **[docs/PHASE5/RELIABILITY_TEST_REPORT.md](docs/PHASE5/RELIABILITY_TEST_REPORT.md)** | Empirical Kind cluster failure simulations covering 10 resilience scenarios with recovery timings. |
+| **[docs/PHASE5/COST_GOVERNANCE_AUDIT.md](docs/PHASE5/COST_GOVERNANCE_AUDIT.md)** | Reconciled $199.84/mo cost estimate including ALB and data transfer; state preservation. |
+| **[docs/PHASE5/SUPPLY_CHAIN_SECURITY_AUDIT.md](docs/PHASE5/SUPPLY_CHAIN_SECURITY_AUDIT.md)** | Gitleaks, Trivy, Dependabot, and SLSA Level 2/3 provenance verification. |
+| **[docs/PHASE5/REMEDIATION_LOG.md](docs/PHASE5/REMEDIATION_LOG.md)** | Detailed changelog of all verified remediations implemented and tested across Phase 5. |
+| **[docs/PHASE5/PHASE5_FINAL_ENGINEERING_REPORT.md](docs/PHASE5/PHASE5_FINAL_ENGINEERING_REPORT.md)** | Final Phase 5 engineering assessment, acceptance classification, and next steps. |
+
 ---
 
 ## 🚀 Key DevOps Capabilities Demonstrated
