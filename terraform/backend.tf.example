@@ -1,0 +1,31 @@
+# -----------------------------------------------------------------------------
+# Production Remote State Configuration Example
+# -----------------------------------------------------------------------------
+# Copy this file to backend.tf after executing the one-time bootstrap
+# procedure described in TERRAFORM_STATE_MANAGEMENT.md.
+#
+# Option A: Modern S3 Native Lockfile (Terraform 1.10+ / OpenTofu 1.6+)
+# Recommended - Eliminates the need for a separate DynamoDB table.
+# -----------------------------------------------------------------------------
+terraform {
+  backend "s3" {
+    bucket       = "project-management-terraform-state-ap-south-1"
+    key          = "devops-platform/terraform.tfstate"
+    region       = "ap-south-1"
+    encrypt      = true
+    use_lockfile = true
+  }
+}
+
+# -----------------------------------------------------------------------------
+# Option B: S3 + DynamoDB Distributed State Locking (Legacy)
+# -----------------------------------------------------------------------------
+# terraform {
+#   backend "s3" {
+#     bucket         = "project-management-terraform-state-ap-south-1"
+#     key            = "devops-platform/terraform.tfstate"
+#     region         = "ap-south-1"
+#     dynamodb_table = "project-management-terraform-locks"
+#     encrypt        = true
+#   }
+# }

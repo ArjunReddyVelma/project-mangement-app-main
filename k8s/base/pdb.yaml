@@ -1,0 +1,13 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: project-dashboard-pdb
+  namespace: project-dashboard
+  labels:
+    app.kubernetes.io/name: project-dashboard
+    app.kubernetes.io/part-of: devops-platform
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: project-dashboard

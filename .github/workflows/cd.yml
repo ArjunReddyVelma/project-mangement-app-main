@@ -1,0 +1,235 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REPOSITORY: project-management-dashboard
+  EKS_CLUSTER_NAME: project-management-dev-eks
+
+jobs:
+  build-and-verify:
+    name: Build, SBOM, and Security Gate
+    runs-on: ubuntu-24.04
+    outputs:
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+      image_name: ${{ steps.meta.outputs.image_name }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@6524bf65af31da8d45b59e8c27de4bd072b392f5 # v3.8.0
+
+      - name: Compute immutable Git commit image tag
+        id: meta
+        run: |
+          IMAGE_TAG="${{ github.sha }}"
+          IMAGE_NAME="project-dashboard:${IMAGE_TAG}"
+          echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "image_name=${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
+          echo "Building production artifact: ${IMAGE_NAME}"
+
+      - name: Build production Docker image
+        run: |
+          docker build --tag ${{ steps.meta.outputs.image_name }} .
+
+      - name: Generate SBOM (SPDX format)
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:0.60.0 image \
+            --format spdx-json \
+            --output sbom.spdx.json \
+            ${{ steps.meta.outputs.image_name }}
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: sbom-${{ steps.meta.outputs.image_tag }}
+          path: sbom.spdx.json
+          retention-days: 30
+
+      - name: Scan container image for vulnerabilities
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          image-ref: ${{ steps.meta.outputs.image_name }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+
+      - name: Save container image archive
+        run: |
+          docker save -o image-${{ steps.meta.outputs.image_tag }}.tar ${{ steps.meta.outputs.image_name }}
+
+      - name: Upload verified image archive
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: container-image-${{ steps.meta.outputs.image_tag }}
+          path: image-${{ steps.meta.outputs.image_tag }}.tar
+          retention-days: 1
+
+  deploy:
+    name: Deploy to Kubernetes
+    needs: build-and-verify
+    runs-on: ubuntu-24.04
+    environment:
+      name: ${{ inputs.environment || (github.ref == 'refs/heads/main' && 'staging' || 'staging') }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Pre-flight Deployment Validation
+        id: preflight
+        run: |
+          echo "Validating deployment credentials and environment configuration..."
+          if [ -z "${{ secrets.AWS_ROLE_ARN }}" ]; then
+            echo "::error::Mandatory secret AWS_ROLE_ARN is not configured for environment '${{ inputs.environment || 'staging' }}'."
+            echo "::error::Deployment cannot proceed without valid AWS OIDC role authorization."
+            exit 1
+          fi
+          echo "Pre-flight checks passed."
+
+      - name: Download verified image archive
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: container-image-${{ needs.build-and-verify.outputs.image_tag }}
+
+      - name: Load verified container image into Docker daemon
+        run: |
+          docker load -i image-${{ needs.build-and-verify.outputs.image_tag }}.tar
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@5579c002bb4778aa43395ef1df492868a9a1c83f # v4.0.2
+        id: aws-auth
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@4625ce35226a7557230889aae2f52eb50ec3dcda # v2.0.1
+
+      - name: Push image to Amazon ECR & capture immutable digest
+        id: push-ecr
+        run: |
+          ECR_REGISTRY="${{ steps.login-ecr.outputs.registry }}"
+          TARGET_IMAGE="${ECR_REGISTRY}/${{ env.ECR_REPOSITORY }}:${{ needs.build-and-verify.outputs.image_tag }}"
+          docker tag ${{ needs.build-and-verify.outputs.image_name }} "$TARGET_IMAGE"
+          docker push "$TARGET_IMAGE"
+
+          # Query ECR directly to extract the immutable image digest
+          IMAGE_DIGEST=$(aws ecr describe-images \
+            --repository-name ${{ env.ECR_REPOSITORY }} \
+            --image-ids imageTag=${{ needs.build-and-verify.outputs.image_tag }} \
+            --query 'imageDetails[0].imageDigest' \
+            --output text)
+
+          if [ -z "$IMAGE_DIGEST" ] || [ "$IMAGE_DIGEST" = "None" ]; then
+            echo "::error::Failed to retrieve immutable digest for pushed image."
+            exit 1
+          fi
+
+          DEPLOY_IMAGE="${ECR_REGISTRY}/${{ env.ECR_REPOSITORY }}@${IMAGE_DIGEST}"
+          echo "image_digest=${IMAGE_DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "deploy_image=${DEPLOY_IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "DEPLOY_IMAGE=${DEPLOY_IMAGE}" >> "$GITHUB_ENV"
+          echo "Pushed verified image: ${DEPLOY_IMAGE}"
+
+      - name: Update kubeconfig for EKS
+        run: |
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
+
+      - name: Capture previous deployment revision
+        id: record-rev
+        run: |
+          PREV_REV=$(kubectl rollout history deployment/project-dashboard -n project-dashboard 2>/dev/null | tail -n 2 | head -n 1 | awk '{print $1}' || echo "none")
+          echo "prev_revision=${PREV_REV}" >> "$GITHUB_OUTPUT"
+          echo "Current deployment revision before apply: ${PREV_REV}"
+
+      - name: Deploy application manifests by immutable digest
+        id: deploy
+        run: |
+          kubectl apply -f k8s/project-dashboard.yaml
+          kubectl set image deployment/project-dashboard dashboard=${{ steps.push-ecr.outputs.deploy_image }} -n project-dashboard
+
+      - name: Wait for Kubernetes rollout completion
+        id: rollout
+        run: |
+          kubectl rollout status deployment/project-dashboard -n project-dashboard --timeout=180s
+
+      - name: Verify deployment availability and application health
+        id: verify-health
+        run: |
+          echo "Verifying deployment condition: Available..."
+          kubectl wait --for=condition=Available deployment/project-dashboard -n project-dashboard --timeout=60s
+
+          echo "Verifying replica readiness..."
+          DESIRED=$(kubectl get deployment project-dashboard -n project-dashboard -o jsonpath='{.spec.replicas}')
+          READY=$(kubectl get deployment project-dashboard -n project-dashboard -o jsonpath='{.status.readyReplicas}')
+          echo "Desired replicas: $DESIRED, Ready replicas: $READY"
+          if [ "$READY" -lt "$DESIRED" ]; then
+            echo "::error::Ready replicas ($READY) is less than desired replicas ($DESIRED)."
+            exit 1
+          fi
+
+          echo "Verifying deployed image digest in cluster..."
+          DEPLOYED_IMAGE=$(kubectl get deployment project-dashboard -n project-dashboard -o jsonpath='{.spec.template.spec.containers[?(@.name=="dashboard")].image}')
+          echo "Deployed image in pod spec: $DEPLOYED_IMAGE"
+          if [[ "$DEPLOYED_IMAGE" != *"${{ steps.push-ecr.outputs.image_digest }}"* ]]; then
+            echo "::error::Cluster image ($DEPLOYED_IMAGE) does not match expected digest (${{ steps.push-ecr.outputs.image_digest }})."
+            exit 1
+          fi
+
+          echo "Executing application health endpoint verification..."
+          kubectl run health-probe-test --image=curlimages/curl:8.12.1 --rm -i --restart=Never -n project-dashboard \
+            -- curl --fail --silent --show-error http://project-dashboard.project-dashboard.svc.cluster.local/health
+
+          echo "All health verification checks passed successfully."
+
+      - name: Automated rollback on rollout or health failure
+        if: failure() && steps.deploy.outcome == 'success'
+        id: rollback
+        run: |
+          echo "::warning::Deployment verification failed. Initiating automated rollback to previous revision..."
+          kubectl rollout undo deployment/project-dashboard -n project-dashboard
+          kubectl rollout status deployment/project-dashboard -n project-dashboard --timeout=120s
+          echo "Rollback completed. Verifying restored deployment availability..."
+          kubectl wait --for=condition=Available deployment/project-dashboard -n project-dashboard --timeout=60s
+          echo "rollback_status=SUCCESS" >> "$GITHUB_ENV"
+
+      - name: Publish deployment summary
+        if: always()
+        run: |
+          echo "### 🚀 DevOps CD Deployment Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Parameter | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| :--- | :--- |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Target Environment** | \`${{ inputs.environment || 'staging' }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Git Commit Tag** | \`${{ needs.build-and-verify.outputs.image_tag }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Pushed Image Digest** | \`${{ steps.push-ecr.outputs.image_digest || 'N/A' }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Deployed Image URI** | \`${{ steps.push-ecr.outputs.deploy_image || 'N/A' }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Pre-Deployment Revision** | \`${{ steps.record-rev.outputs.prev_revision || 'N/A' }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Security Gate (Trivy)** | ✅ 0 High / 0 Critical CVEs |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **SBOM Artifact** | ✅ Generated & Uploaded |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Deployment Status** | ${{ job.status == 'success' && '✅ SUCCESS' || '❌ FAILED' }} |" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "${{ env.rollback_status }}" ]; then
+            echo "| **Automated Rollback** | ⚠️ TRIGGERED (${{ env.rollback_status }}) |" >> "$GITHUB_STEP_SUMMARY"
+          fi

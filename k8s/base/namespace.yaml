@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: project-dashboard
+  labels:
+    app.kubernetes.io/name: project-dashboard
+    app.kubernetes.io/part-of: devops-platform

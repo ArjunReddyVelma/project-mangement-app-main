@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-function TaskList({ tasks, onCreateTask, projects, users }) {
+function TaskList({ tasks, onCreateTask, projects, _users }) {
     const [newTaskTitle, setNewTaskTitle] = useState('');
     const [newTaskProjectId, setNewTaskProjectId] = useState('');
 

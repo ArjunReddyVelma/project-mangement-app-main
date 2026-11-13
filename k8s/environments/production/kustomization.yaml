@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+namespace: project-dashboard
+
+images:
+  - name: project-dashboard
+    newName: 123456789012.dkr.ecr.ap-south-1.amazonaws.com/project-management-dashboard
+    digest: sha256:d8a25c786016e1e83ec4285e7834a36f6d5329cf555b77bfb3080e72c88d8f3b

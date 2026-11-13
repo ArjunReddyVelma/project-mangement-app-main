@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import ProjectList from './ProjectList';
 import TaskList from './TaskList';
 import UserList from './UserList';
@@ -9,15 +9,15 @@ import { getTasks, createTask } from '../utils/taskUtils';
 import { calculateStats } from '../utils/dashboardUtils';
 import { getUsers } from '../utils/userUtils';
 function Dashboard() {
-    const [projects, setProjects] = useState(initialProjects);
+    const [projects, _setProjects] = useState(initialProjects);
     const [tasks, setTasks] = useState(initialTasks);
-    const [users, setUsers] = useState(initialUsers);
-    const [notifications, setNotifications] = useState(initialNotifications);
+    const [users, _setUsers] = useState(initialUsers);
+    const [notifications, _setNotifications] = useState(initialNotifications);
 
     // Filters state
     const [projectFilters, setProjectFilters] = useState({});
-    const [taskFilters, setTaskFilters] = useState({});
-    const [userFilters, setUserFilters] = useState({});
+    const [taskFilters, _setTaskFilters] = useState({});
+    const [userFilters, _setUserFilters] = useState({});
     // Processed Data
     const displayedProjects = getProjects(projects, projectFilters);
     const displayedTasks = getTasks(tasks, taskFilters);
