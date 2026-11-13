@@ -56,15 +56,16 @@ module "cloudwatch" {
 # Managed Kubernetes (EKS)
 # -------------------------------------------------------------
 module "eks" {
-  source           = "./modules/eks"
-  project_name     = var.project_name
-  environment      = var.environment
-  vpc_id           = module.vpc.vpc_id
-  vpc_cidr         = module.vpc.vpc_cidr_block
-  subnet_ids       = module.vpc.private_subnet_ids
-  cluster_role_arn = module.iam.cluster_role_arn
-  node_role_arn    = module.iam.node_role_arn
-  desired_size     = var.eks_desired_nodes
-  min_size         = var.eks_min_nodes
-  max_size         = var.eks_max_nodes
+  source                  = "./modules/eks"
+  project_name            = var.project_name
+  environment             = var.environment
+  vpc_id                  = module.vpc.vpc_id
+  vpc_cidr                = module.vpc.vpc_cidr_block
+  subnet_ids              = module.vpc.private_subnet_ids
+  cluster_role_arn        = module.iam.cluster_role_arn
+  node_role_arn           = module.iam.node_role_arn
+  github_actions_role_arn = module.iam.github_actions_role_arn
+  desired_size            = var.eks_desired_nodes
+  min_size                = var.eks_min_nodes
+  max_size                = var.eks_max_nodes
 }

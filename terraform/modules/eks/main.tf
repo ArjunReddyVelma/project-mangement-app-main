@@ -105,6 +105,11 @@ resource "aws_eks_cluster" "main" {
     endpoint_public_access  = false
   }
 
+  access_config {
+    authentication_mode                         = "API_AND_CONFIG_MAP"
+    bootstrap_cluster_creator_admin_permissions = true
+  }
+
   encryption_config {
     provider {
       key_arn = aws_kms_key.eks.arn
@@ -119,6 +124,33 @@ resource "aws_eks_cluster" "main" {
     Environment = var.environment
     Project     = var.project_name
     ManagedBy   = "Terraform"
+  }
+}
+
+# -------------------------------------------------------------
+# EKS Access Entry & Least-Privilege Policy for GitHub CD
+# -------------------------------------------------------------
+resource "aws_eks_access_entry" "github_actions_cd" {
+  cluster_name  = aws_eks_cluster.main.name
+  principal_arn = var.github_actions_role_arn
+  type          = "STANDARD"
+
+  tags = {
+    Name        = "${var.project_name}-${var.environment}-cd-access-entry"
+    Environment = var.environment
+    Project     = var.project_name
+    ManagedBy   = "Terraform"
+  }
+}
+
+resource "aws_eks_access_policy_association" "github_actions_cd" {
+  cluster_name  = aws_eks_cluster.main.name
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSEditPolicy"
+  principal_arn = var.github_actions_role_arn
+
+  access_scope {
+    type       = "namespace"
+    namespaces = ["project-dashboard"]
   }
 }
 

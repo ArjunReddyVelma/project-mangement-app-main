@@ -91,7 +91,10 @@ data "aws_iam_policy_document" "github_oidc_assume" {
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:*"]
+      values = concat(
+        [for b in var.github_branches : "repo:${var.github_repo}:ref:refs/heads/${b}"],
+        [for env in var.github_environments : "repo:${var.github_repo}:environment:${env}"]
+      )
     }
   }
 }
@@ -127,7 +130,8 @@ data "aws_iam_policy_document" "github_actions_policy_doc" {
       "ecr:UploadLayerPart",
       "ecr:CompleteLayerUpload",
       "ecr:DescribeRepositories",
-      "ecr:ListImages"
+      "ecr:ListImages",
+      "ecr:DescribeImages"
     ]
     resources = ["arn:aws:ecr:*:${data.aws_caller_identity.current.account_id}:repository/${var.project_name}-dashboard"]
   }

@@ -40,6 +40,11 @@ variable "node_role_arn" {
   description = "IAM Role ARN for the EKS worker nodes."
 }
 
+variable "github_actions_role_arn" {
+  type        = string
+  description = "IAM Role ARN of the GitHub Actions CD deployer for cluster access."
+}
+
 variable "instance_types" {
   type        = list(string)
   description = "EC2 instance types for the node group."
