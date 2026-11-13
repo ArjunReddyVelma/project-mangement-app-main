@@ -6,6 +6,10 @@ resource "aws_ecr_repository" "dashboard" {
     scan_on_push = true
   }
 
+  encryption_configuration {
+    encryption_type = "KMS"
+  }
+
   tags = {
     Project     = var.project_name
     ManagedBy   = "Terraform"
