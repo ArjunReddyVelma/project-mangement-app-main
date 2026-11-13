@@ -20,23 +20,35 @@ spec:
       labels:
         app.kubernetes.io/name: project-dashboard
     spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: dashboard
-          image: REPLACE_WITH_YOUR_ECR_IMAGE
+          image: project-dashboard:local
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
               name: http
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            failureThreshold: 30
+            periodSeconds: 2
           readinessProbe:
             httpGet:
               path: /health
               port: http
             initialDelaySeconds: 3
+            periodSeconds: 5
           livenessProbe:
             httpGet:
               path: /health
               port: http
-            initialDelaySeconds: 10
+            initialDelaySeconds: 5
+            periodSeconds: 10
           resources:
             requests:
               cpu: 100m
@@ -47,6 +59,14 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
+            runAsUser: 101
+            runAsGroup: 101
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
         - name: nginx-exporter
           image: nginx/nginx-prometheus-exporter:1.4.1
           args:
@@ -54,9 +74,24 @@ spec:
           ports:
             - containerPort: 9113
               name: metrics
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
+            runAsUser: 1001
+            runAsGroup: 1001
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: tmp
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
@@ -70,15 +105,18 @@ metadata:
     prometheus.io/port: "9113"
     prometheus.io/path: /metrics
 spec:
+  type: NodePort
   selector:
     app.kubernetes.io/name: project-dashboard
   ports:
     - name: http
       port: 80
       targetPort: http
+      nodePort: 30080
     - name: metrics
       port: 9113
       targetPort: metrics
+      nodePort: 30113
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
