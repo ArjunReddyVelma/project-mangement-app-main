@@ -15,16 +15,29 @@ Developer ──> GitHub ──> CI (Lint/Build/Security) ──> CD (OIDC/ECR) 
 
 ## 📑 Platform Documentation Index
 
+### Core Architecture & Operations
 | Document | Purpose |
 | :--- | :--- |
 | **[ARCHITECTURE.md](ARCHITECTURE.md)** | End-to-end system architecture, Mermaid sequence and topology diagrams, defense-in-depth security model. |
 | **[DEPLOYMENT.md](DEPLOYMENT.md)** | Complete step-by-step guides for local Kind Kubernetes deployment, rolling updates, rollbacks, and AWS EKS. |
 | **[SECURITY.md](SECURITY.md)** | DevSecOps policy, non-root container standards, zero-tolerance vulnerability gates, SPDX SBOM, and OIDC IAM. |
-| **[MONITORING.md](MONITORING.md)** | Observability architecture, Prometheus metrics reference, Grafana dashboard definitions, and alerting thresholds. |
-| **[RUNBOOK.md](RUNBOOK.md)** | Incident response playbooks covering 6 simulated failure scenarios, SLOs/SLIs, and MTTD/MTTR targets. |
+| **[MONITORING.md](MONITORING.md)** | Observability architecture, Alertmanager routing, Prometheus metrics, and Grafana dashboard definitions. |
+| **[RUNBOOK.md](RUNBOOK.md)** | Incident response playbooks covering simulated failure scenarios, SLOs/SLIs, and MTTD/MTTR targets. |
 | **[DISASTER_RECOVERY.md](DISASTER_RECOVERY.md)** | Business continuity plan, RTO/RPO objectives, cluster re-creation, and regional failover strategies. |
 | **[COST_ESTIMATION.md](COST_ESTIMATION.md)** | Line-item AWS cost analysis ($178.34/mo baseline, $135.80/mo spot-optimized), and teardown procedures. |
 | **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** | Common operational issues, root cause diagnostics, and verified remediation commands. |
+
+### Phase 3 Production Readiness & Governance
+| Document | Purpose |
+| :--- | :--- |
+| **[PHASE3_INITIAL_AUDIT.md](PHASE3_INITIAL_AUDIT.md)** | Baseline audit of Phase 2 architecture, identifying CD false-positives, private EKS routing, and state risks. |
+| **[DEPLOYMENT_NETWORK_ARCHITECTURE.md](DEPLOYMENT_NETWORK_ARCHITECTURE.md)** | Comparative evaluation of private EKS CI/CD runner architectures; selects and specs ephemeral ARC. |
+| **[IAM_AND_EKS_ACCESS.md](IAM_AND_EKS_ACCESS.md)** | Scoped OIDC subject claims and modern AWS EKS v1.31 Access Entry RBAC policy configuration. |
+| **[TERRAFORM_STATE_MANAGEMENT.md](TERRAFORM_STATE_MANAGEMENT.md)** | S3 remote state architecture, SSE-KMS encryption, bucket policies, and OpenTofu/Terraform lockfiles. |
+| **[INFRASTRUCTURE_SECURITY_REVIEW.md](INFRASTRUCTURE_SECURITY_REVIEW.md)** | CIS AWS Foundations compliance review, NAT Gateway availability vs cost trade-off analysis. |
+| **[SRE_VALIDATION_REPORT.md](SRE_VALIDATION_REPORT.md)** | Empirical validation of 8 failure scenarios in Kind, zero-downtime rollouts, and SLO vs SLA definitions. |
+| **[SUPPLY_CHAIN_SECURITY.md](SUPPLY_CHAIN_SECURITY.md)** | Gitleaks secrets scanning, Trivy image vetting, SPDX SBOM generation, and Cosign/Kyverno admission. |
+| **[PHASE3_IMPLEMENTATION_REPORT.md](PHASE3_IMPLEMENTATION_REPORT.md)** | Comprehensive Phase 3 executive report, verification matrix, remaining risks, and readiness assessment. |
 
 ---
 
@@ -42,10 +55,13 @@ Developer ──> GitHub ──> CI (Lint/Build/Security) ──> CD (OIDC/ECR) 
    - CPU-based Horizontal Pod Autoscaling (70% target, 2 to 5 replicas).
    - Metrics Server integration and sidecar metric collection (`nginx-prometheus-exporter`).
    - Verified rolling update zero-downtime rollouts and automated rollbacks on failure.
+   - Scoped AWS EKS v1.31 Access Entries mapped strictly to namespace `project-dashboard`.
 3. **Full Observability & Alerting Stack:**
    - Pre-provisioned **Grafana 11.5.2** dashboard (**DevOps Platform Overview**).
-   - **Prometheus 2.54.1** metrics engine with 5 automated alert rules (`NginxServiceDown`, `HighActiveConnections`, `HighRequestRate`, `HighContainerCpuUsage`, `PodRestartsHigh`).
+   - **Prometheus 2.54.1** metrics engine with 6 automated alert rules across infrastructure and application tiers.
+   - **Alertmanager 0.27.0** routing engine with severity grouping (critical vs warning), deduplication, and inhibition.
    - Sidecar architecture exporting connection states and request counters.
+   - Local Docker Compose stack strictly bound to loopback `127.0.0.1` for host protection.
 4. **Shift-Left DevSecOps Pipeline:**
    - **Gitleaks** automated secret scanning on all commits.
    - **Trivy** scanning across filesystem, container images, Kubernetes manifests, and Terraform IaC.
@@ -54,9 +70,9 @@ Developer ──> GitHub ──> CI (Lint/Build/Security) ──> CD (OIDC/ECR) 
    - Dependabot weekly updates across npm, Docker, GitHub Actions, and Terraform.
 5. **Modular Infrastructure as Code (Terraform):**
    - Clean reusable modules for `vpc`, `iam`, `ecr`, `eks`, and `cloudwatch`.
-   - Short-lived GitHub Actions OIDC federation eliminating static AWS credentials.
-   - KMS customer-managed key encryption for Kubernetes secrets at rest.
-   - ECR immutable tags and automated 10-image lifecycle cleanup policies.
+   - Short-lived GitHub Actions OIDC federation with strictly scoped branch/environment subject claims.
+   - KMS customer-managed key encryption for Kubernetes secrets and ECR container repositories.
+   - Remote state configuration blueprint with S3 versioning, TLS enforcement, and lockfiles.
 
 ---
 
@@ -73,6 +89,7 @@ Access services locally:
 - **Health Check:** http://localhost:8080/health
 - **Nginx Exporter Metrics:** http://localhost:9113/metrics
 - **Prometheus UI:** http://localhost:9090
+- **Alertmanager UI:** http://localhost:9093
 - **Grafana Dashboard:** http://localhost:3000 (User: `admin`, Pass: `admin`)
 
 Stop stack:
@@ -113,7 +130,7 @@ curl -i http://localhost:8080/health
 | :--- | :--- | :--- | :--- |
 | **npm Dependencies** | `npm audit` / `npm ci` | 0 Vulnerabilities | ✅ PASS |
 | **Code Linting** | `oxlint` | 0 Errors | ✅ PASS |
-| **Secret Scanning** | Gitleaks v8 | 0 Leaks Found across 26 commits | ✅ PASS |
+| **Secret Scanning** | Gitleaks v8 | 0 Leaks Found across 32 commits | ✅ PASS |
 | **Filesystem CVEs** | Trivy FS | 0 High / 0 Critical | ✅ PASS |
 | **Container CVEs** | Trivy Container (Alpine 3.24) | 0 High / 0 Critical | ✅ PASS |
 | **IaC Misconfiguration** | Trivy Config (K8s & Terraform) | 0 Misconfigurations | ✅ PASS |

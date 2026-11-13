@@ -131,15 +131,22 @@ kubectl apply -f k8s/project-dashboard.yaml
 
 The repository provides `.github/workflows/cd.yml` supporting automated deployments on `push: [main]` or manual trigger via `workflow_dispatch`:
 
-1. **Build & Verify:**
-   - Generates immutable Git SHA image tag.
-   - Generates SPDX-JSON SBOM artifact.
-   - Scans image with Trivy (blocking High/Critical CVEs).
+1. **Pre-Flight Authentication Validation:**
+   - Evaluates availability of `secrets.AWS_ROLE_ARN` before initiating runner workflows.
+   - Halts pipeline execution with a clear diagnostic error (`::error::AWS_ROLE_ARN secret is not configured`) if credentials are absent, preventing misleading false-positive build passes.
+2. **Build, SBOM & Verification:**
+   - Generates immutable Git SHA image tag (`${{ github.sha }}`) and extracts the canonical sha256 registry digest.
+   - Generates SPDX-JSON SBOM artifact for supply chain provenance.
+   - Scans image with Trivy (blocking High/Critical CVEs with exit-code 1).
    - Packages verified image tarball.
-2. **Deploy Job:**
+3. **Deploy Job & Cluster Access:**
    - Authenticates to AWS via GitHub OIDC without long-lived static secrets.
-   - Pushes image to Amazon ECR.
-   - Updates EKS deployment image tag.
-   - Waits for rollout completion and verifies pod health.
-   - Triggers automatic `kubectl rollout undo` on failure.
-   - Publishes step summary report to GitHub Actions console.
+   - Pushes image to Amazon ECR and deploys via immutable digest (`@sha256:...`) to eliminate tag-mutability drift.
+   - Executes deployment within VPC via ephemeral Actions Runner Controller (ARC) on EKS (see [DEPLOYMENT_NETWORK_ARCHITECTURE.md](DEPLOYMENT_NETWORK_ARCHITECTURE.md)).
+   - Updates EKS deployment image digest.
+4. **Post-Deployment Health & Automated Rollback:**
+   - Waits for rollout completion (`kubectl rollout status --timeout=120s`).
+   - Verifies condition `Available` and checks that ready replicas match desired replicas.
+   - Executes in-cluster probe (`curl -s -f http://project-dashboard.project-dashboard.svc.cluster.local:80/health`).
+   - On deployment failure, captures rollout history, automatically invokes `kubectl rollout undo deployment/project-dashboard`, waits for restored stability, confirms health of restored pods, and sets `rollback_status`.
+   - Publishes detailed step summary report to GitHub Actions console.

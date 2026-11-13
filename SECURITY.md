@@ -65,16 +65,20 @@ Admission controllers (such as Kyverno or OPA Gatekeeper) verify cryptographic s
 
 ## 5. Cloud & Network Security
 
-1. **Short-Lived GitHub OIDC Authentication:**
-   - Long-lived AWS access keys are prohibited.
+1. **Short-Lived GitHub OIDC Authentication (Strictly Scoped):**
+   - Long-lived AWS access keys are strictly prohibited.
    - GitHub Actions authenticates directly to AWS STS using OpenID Connect (`token.actions.githubusercontent.com`).
-   - Trust policy restricts role assumption strictly to the specific repository: `repo:ArjunReddyVelma/project-mangement-app-main:*`.
-2. **Private EKS API Server:**
+   - Trust policy scopes role assumption strictly to verified branches and deployment environments: `repo:ArjunReddyVelma/project-mangement-app-main:ref:refs/heads/main`, `environment:staging`, and `environment:production`. Wildcard `*` matching is eliminated (see [IAM_AND_EKS_ACCESS.md](IAM_AND_EKS_ACCESS.md)).
+2. **EKS Access Entries & Least-Privilege RBAC:**
+   - EKS v1.31 native Access Entries manage cluster authentication (`API_AND_CONFIG_MAP` authentication mode).
+   - The GitHub Actions deployment role is granted `AmazonEKSEditPolicy` scoped strictly to namespace `project-dashboard`, preventing unauthorized access to `kube-system` or cluster-scoped administration.
+3. **Private EKS API Server & Runner Isolation:**
    - EKS API server endpoint public access is disabled (`endpoint_public_access = false`).
-   - Worker nodes reside in private subnets with restricted egress filtered by VPC CIDR.
-3. **KMS Envelope Encryption:**
+   - Workloads and CI/CD runners reside in private subnets with restricted egress filtered by VPC CIDR (see [DEPLOYMENT_NETWORK_ARCHITECTURE.md](DEPLOYMENT_NETWORK_ARCHITECTURE.md)).
+4. **KMS Envelope Encryption:**
    - Kubernetes secrets stored in etcd are encrypted at rest using AWS KMS customer managed keys with annual key rotation enabled.
-4. **HTTP Security Headers:**
+   - Amazon ECR container images and S3 Terraform state backends are encrypted using AWS KMS CMKs (see [TERRAFORM_STATE_MANAGEMENT.md](TERRAFORM_STATE_MANAGEMENT.md) and [INFRASTRUCTURE_SECURITY_REVIEW.md](INFRASTRUCTURE_SECURITY_REVIEW.md)).
+5. **HTTP Security Headers:**
    - Nginx server configuration actively injects:
      - `X-Frame-Options: SAMEORIGIN`
      - `X-Content-Type-Options: nosniff`
@@ -83,7 +87,16 @@ Admission controllers (such as Kyverno or OPA Gatekeeper) verify cryptographic s
 
 ---
 
-## 6. Vulnerability Disclosure & Exception Handling
+## 6. Software Supply Chain & Governance
+
+Comprehensive supply chain security architecture, verification workflows, and policy enforcement specifications are documented in:
+- **[SUPPLY_CHAIN_SECURITY.md](SUPPLY_CHAIN_SECURITY.md)**: Gitleaks automated scanning, SPDX SBOM generation, and Cosign keyless signing with Kyverno admission enforcement.
+- **[TERRAFORM_STATE_MANAGEMENT.md](TERRAFORM_STATE_MANAGEMENT.md)**: S3 remote state isolation, TLS enforcement, SSE-KMS encryption, and native S3/DynamoDB state locking.
+- **[INFRASTRUCTURE_SECURITY_REVIEW.md](INFRASTRUCTURE_SECURITY_REVIEW.md)**: Comprehensive CIS benchmark alignment, NAT Gateway availability vs cost trade-off, and IMDSv2 node hardening.
+
+---
+
+## 7. Vulnerability Disclosure & Exception Handling
 
 If a third-party package reports a vulnerability with no available upstream fix (`unfixed`):
 1. A security ticket must be filed documenting:
